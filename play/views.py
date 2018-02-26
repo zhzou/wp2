@@ -3,7 +3,7 @@ from django.http import HttpResponseBadRequest, HttpResponse, HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 # Create your views here.
 from django.http import HttpResponseBadRequest
-import os, smtplib, random, string, json, hashlib
+import os, smtplib, random, string, json, hashlib, datetime
 from email.mime.text import MIMEText
 
 @csrf_exempt
@@ -24,9 +24,9 @@ def index2(request):
 		if request.method == 'POST':
 			griddict = json.loads(request.body.decode('utf8'))
 			move = griddict['move']
-			print(move)
+			#print(move)
 			if 'SESSION' in request.COOKIES:
-				print(move)
+				#print(move)
 				session = request.COOKIES['SESSION']
 				with open('sessions.json','r') as jfile:
 					old_ses = json.load(jfile)
@@ -53,31 +53,207 @@ def index2(request):
 							old_accs['accounts'][acc_index] = user
 							with open('accounts.json','w') as ofile:
 								json.dump(old_accs,ofile)
-
 							
 						else:
 							if griddict['winner'] == 'X':
 								user['grid'] = [' ',' ',' ',' ',' ',' ',' ', ' ',' ']
-								user['score'] += 1
+								user['human'] += 1
 								old_accs['accounts'][acc_index] = user
 								with open('accounts.json','w') as ofile:
 									json.dump(old_accs,ofile)
+								
+
+
 							else:
+								if griddict['winner'] == 'O':
+									user['wopr'] += 1
+								elif griddict['winner'] == ' ':
+									user['tie'] += 1
 								user['grid'] = [' ',' ',' ',' ',' ',' ',' ', ' ',' ']
 								old_accs['accounts'][acc_index] = user
 								with open('accounts.json','w') as ofile:
 									json.dump(old_accs,ofile)
+
+
+
+							################################
+							#Game list
+							with open('gamelists.json','r') as jfile:
+								gamelists = json.load(jfile)
+							for i in range(len(gamelists['gamelists'])):
+								if username in gamelists['gamelists'][i]:
+									gid = len(gamelists['gamelists'][i][username]) - 1
+									gamelists['gamelists'][i][username][gid]['grid'] = griddict['grid']
+									gamelists['gamelists'][i][username][gid]['winner'] = griddict['winner']
+							
+									gid += 1 
+									date = datetime.datetime.now().strftime("%y-%m-%d")
+									gamelists['gamelists'][i][username] += [{'id':gid, 'grid':[' ',' ',' ',' ',' ',' ',' ', ' ',' '], 'start_date':date,'winner':'None'}]
+									
+									with open('gamelists.json','w') as ofile:
+										json.dump(gamelists,ofile)
+							################################
 							return HttpResponse(json.dumps(griddict).encode('utf8'),content_type="application/json")
-						print(json.dumps(griddict))
+						#print(json.dumps(griddict))
 						return HttpResponse(json.dumps(griddict).encode('utf8'),content_type="application/json")
 	
 
 				except:
-					
+					print("??")
 					pass
 	return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
 
+@csrf_exempt
+def listgames(request):
+	result_json = { "status":'ERROR'}
+	if request.META.get('CONTENT_TYPE') == 'application/json':
+		if request.method == 'POST':
+			if 'SESSION' in request.COOKIES:
+				#print(move)
+				session = request.COOKIES['SESSION']
+				with open('sessions.json','r') as jfile:
+					old_ses = json.load(jfile)
+				try:
+					for i in old_ses['sessions']:
+						if session in old_ses['sessions'][i] :
+							username = i
+					with open('gamelists.json','r') as jfile:
+						gamelists = json.load(jfile)
+					for i in range(len(gamelists['gamelists'])):
+						each_acc = gamelists['gamelists'][i]
+						if username in each_acc:
+							user = each_acc
+							acc_index = i
+							break
+					lists = []
+					for i in range(len(user[username])-1):
+						lists += [{"id":user[username][i]['id'],"start_date":user[username][i]['start_date']}]
 
+					result_json = {"status":'OK',"games":lists}
+					return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+					#user is the account
+				except:
+					pass
+	# if 'SESSION' in request.COOKIES:
+	# 			#print(move)
+	# 			session = request.COOKIES['SESSION']
+	# 			with open('sessions.json','r') as jfile:
+	# 				old_ses = json.load(jfile)
+	# 			try:
+	# 				for i in old_ses['sessions']:
+	# 					if session in old_ses['sessions'][i] :
+	# 						username = i
+	# 				with open('gamelists.json','r') as jfile:
+	# 					gamelists = json.load(jfile)
+	# 				for i in range(len(gamelists['gamelists'])):
+	# 					each_acc = gamelists['gamelists'][i]
+	# 					if username in each_acc:
+	# 						user = each_acc
+	# 						acc_index = i
+	# 						break
+	# 				lists = []
+	# 				for i in range(len(user[username])-1):
+	# 					lists += [{"id":user[username][i]['id'],"start_date":user[username][i]['start_date']}]
+
+	# 				result_json = {"status":'OK',"games":lists}
+	# 				return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+	# 				#user is the account
+	# 			except:
+	# 				pass
+	return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+					
+
+@csrf_exempt
+def getgame(request):
+	result_json = { "status":'ERROR'}
+	if request.META.get('CONTENT_TYPE') == 'application/json':
+		if request.method == 'POST':
+			griddict = json.loads(request.body.decode('utf8'))
+			gid = griddict['id']
+			if 'SESSION' in request.COOKIES:
+				#print(move)
+				session = request.COOKIES['SESSION']
+				with open('sessions.json','r') as jfile:
+					old_ses = json.load(jfile)
+				try:
+					for i in old_ses['sessions']:
+						if session in old_ses['sessions'][i] :
+							username = i
+					with open('gamelists.json','r') as jfile:
+						gamelists = json.load(jfile)
+					for i in range(len(gamelists['gamelists'])):
+						each_acc = gamelists['gamelists'][i]
+						if username in each_acc:
+							user = each_acc
+							acc_index = i
+							break
+					for i in range(len(user[username])-1):
+						if user[username][i]['id'] == gid:
+							grid = user[username][i]['grid']
+							winner = user[username][i]['winner']
+					result_json = {"status":'OK',"grid":grid,"winner":winner}
+					return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+					#user is the account
+				except:
+					pass
+	return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+
+def getscore(request):
+	result_json = { "status":'ERROR'}
+	if request.META.get('CONTENT_TYPE') == 'application/json':
+		if request.method == 'POST':
+			if 'SESSION' in request.COOKIES:
+				#print(move)
+				session = request.COOKIES['SESSION']
+				with open('sessions.json','r') as jfile:
+					old_ses = json.load(jfile)
+				try:
+					for i in old_ses['sessions']:
+						if session in old_ses['sessions'][i] :
+							username = i
+					with open('accounts.json','r') as jfile:
+						old_accs = json.load(jfile)
+					for i in range(len(old_accs['accounts'])):
+						each_acc = old_accs['accounts'][i]
+						
+						if each_acc['username'] == username:
+							
+							user = each_acc
+							acc_index = i
+					#user is the account
+					
+					result_json = {"status":'OK',"human":user['humane'],"wopr":user['wopr'],"tie":user['tie']}
+					return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+					#user is the account
+				except:
+					pass
+	if 'SESSION' in request.COOKIES:
+				#print(move)
+				session = request.COOKIES['SESSION']
+				with open('sessions.json','r') as jfile:
+					old_ses = json.load(jfile)
+				try:
+					for i in old_ses['sessions']:
+						if session in old_ses['sessions'][i] :
+							username = i
+					with open('accounts.json','r') as jfile:
+						old_accs = json.load(jfile)
+					for i in range(len(old_accs['accounts'])):
+						each_acc = old_accs['accounts'][i]
+						
+						if each_acc['username'] == username:
+							
+							user = each_acc
+							acc_index = i
+					#user is the account
+					
+					result_json = {"status":'OK',"human":user['human'],"wopr":user['wopr'],"tie":user['tie']}
+					return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
+					#user is the account
+				except:
+
+					pass
+	return HttpResponse(json.dumps(result_json).encode('utf8'),content_type="application/json")
 
 
 @csrf_exempt
@@ -96,7 +272,10 @@ def adduser(request):
 			verify = False
 			account['verify'] = False
 			account['grid'] = [' ',' ',' ',' ',' ',' ',' ',' ',' ']
-			account['score'] = 0
+			account['human'] = 0
+			account['wopr'] = 0
+			account['tie'] = 0
+
 			key = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(8))
 			account['key'] = key
 			old_accs = {}
@@ -108,7 +287,18 @@ def adduser(request):
 			for i in accs:
 				if i['username'] == username:
 					exist = True
+
+
 			if not exist:
+				######################
+				#add game list
+				with open('gamelists.json','r') as jfile:
+					gamelists = json.load(jfile)
+				gamelists['gamelists']+=[{username:[]}]
+
+				with open('gamelists.json','w') as ofile:
+					json.dump(gamelists,ofile)
+				######################
 				old_accs['accounts'].append(account)
 				with open('accounts.json','w') as ofile:
 					json.dump(old_accs,ofile)
@@ -212,16 +402,18 @@ def login(request):
 @csrf_exempt
 def logout(request):
 	result_json = {"status":"ERROR"}
-	if request.method == 'POST':
-		username = request.GET["username"]
+	if request.method == 'POST' or request.method == 'GET':
+		#username = request.GET["username"]
 		if 'SESSION' in request.COOKIES:
-				session = request.COOKIES['SESSION']
+			session = request.COOKIES['SESSION']
 
 		#delete session to file
 		with open('sessions.json','r') as jfile:
 			old_ses = json.load(jfile)
+		for i in old_ses['sessions']:
+			if session in old_ses['sessions'][i]:
+				old_ses['sessions'][i].remove(session)
 
-		old_ses['sessions'][username].remove(session)
 
 		with open('sessions.json','w') as ofile:
 			json.dump(old_ses,ofile)

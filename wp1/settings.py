@@ -24,7 +24,7 @@ SECRET_KEY = 'g83yr*kf=7ap4k@v_2-)190zr89z2=5+v+bt!7szq0fc15y0s^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
+APPEND_SLASH = False
 ALLOWED_HOSTS = ['*','130.245.169.164','zhzou.cse356.compas.cs.stonybrook.edu','localhost']
 
 
